@@ -14,6 +14,11 @@ from src.utils.exceptions import VisualizationError
 import numpy as np
 import webbrowser
 import os
+import threading
+import socketserver
+import http.server
+import functools
+from pathlib import Path
 
 
 class Visualizer:
@@ -230,13 +235,112 @@ class Visualizer:
             if not self.plots:
                 raise VisualizationError("No plots to save")
 
-            output_file(self.output_path)
+            # Ensure we use an absolute path and a proper file URI on all OSes
+            file_path = Path(self.output_path).resolve()
+            output_file(str(file_path))
             layout = column(*self.plots)
             save(layout)
-            
-            # Automatically open the visualization in the default web browser
-            file_path = os.path.abspath(self.output_path)
-            webbrowser.open(f"file://{file_path}")
+
+            # Create a small live wrapper that reloads when the HTML changes
+            wrapper_path = file_path.parent / "visualization_live.html"
+            wrapper_html = f"""<!doctype html>
+<html>
+  <head>
+    <meta charset=\"utf-8\">
+    <title>Live Visualization</title>
+    <style>html,body{{height:100%;margin:0;padding:0}}</style>
+  </head>
+  <body>
+    <iframe id=\"viz\" src=\"{file_path.name}\" style=\"width:100%;height:100vh;border:none;\"></iframe>
+    <script>
+      let last = null;
+      async function check(){{
+        try{{
+          const res = await fetch('{file_path.name}', {{method:'HEAD', cache:'no-store'}});
+          const lm = res.headers.get('Last-Modified');
+          if (last && lm && lm !== last) {{
+            document.getElementById('viz').src = '{file_path.name}#' + Date.now();
+          }}
+          last = lm;
+        }}catch(e){{}}
+      }}
+      setInterval(check, 2000);
+    </script>
+  </body>
+</html>"""
+            try:
+                wrapper_path.write_text(wrapper_html, encoding="utf-8")
+            except Exception:
+                pass
+
+            # Try to start a local HTTP server serving the file's directory
+            server_started = False
+            if not getattr(self, "_server_thread", None):
+                try:
+                    Handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(file_path.parent))
+                    from http.server import ThreadingHTTPServer
+
+                    server = None
+                    # scan for an available port
+                    for port_try in range(8000, 8100):
+                        try:
+                            server = ThreadingHTTPServer(("127.0.0.1", port_try), Handler)
+                            port = port_try
+                            break
+                        except OSError:
+                            server = None
+                            continue
+
+                    if server is None:
+                        raise OSError("No available port in range 8000-8099")
+
+                    thread = threading.Thread(target=server.serve_forever, daemon=True)
+                    thread.start()
+                    self._server_thread = thread
+                    self._httpd = server
+                    server_started = True
+                except Exception as ex:
+                    print(f"Could not start local HTTP server: {ex}")
+                    server_started = False
+
+            # Prefer opening the live wrapper via HTTP so auto-reload works
+            try:
+                if server_started:
+                    url = f"http://127.0.0.1:{port}/{wrapper_path.name}"
+                    try:
+                        webbrowser.open_new_tab(url)
+                    except Exception:
+                        pass
+                    print(f"Visualization served at: {url}")
+                    try:
+                        input("Press Enter to stop the local visualization server and exit...\n")
+                    finally:
+                        try:
+                            if hasattr(self, "_httpd") and self._httpd:
+                                self._httpd.shutdown()
+                        except Exception:
+                            pass
+                else:
+                    # Fall back to opening the file directly
+                    opened = False
+                    try:
+                        opened = webbrowser.open_new_tab(file_path.as_uri())
+                    except Exception:
+                        opened = False
+
+                    if not opened:
+                        try:
+                            if os.name == "nt":
+                                os.startfile(str(file_path))
+                            else:
+                                webbrowser.open(str(file_path))
+                            print(f"Visualization opened (file): {file_path}")
+                        except Exception:
+                            print(f"Visualization saved to: {file_path}")
+                    else:
+                        print(f"Visualization opened in browser: {file_path}")
+            except Exception:
+                print(f"Visualization saved to: {file_path}")
         except Exception as e:
             raise VisualizationError(f"Error saving visualizations: {str(e)}") from e
 
