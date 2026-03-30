@@ -54,7 +54,7 @@ class Application:
         self.ideal_loader = IdealFunctionLoader()
         self.test_loader = TestDataLoader()
         self.selector = IdealFunctionSelector()
-        self.visualizer = Visualizer()
+        self.visualizer = Visualizer("visualization_live.html")
         
         self.training_data_sets: Dict[str, List[TrainingData]] = {}
         self.ideal_functions: List[IdealFunction] = []
