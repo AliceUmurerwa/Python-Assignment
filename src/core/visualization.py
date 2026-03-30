@@ -226,7 +226,7 @@ class Visualizer:
 
     def save_visualizations(self) -> None:
         """
-        Save all plots to a single self-contained HTML file with auto-reload.
+        Save all plots to an HTML file and open it in the default browser.
 
         Raises:
             VisualizationError: If save fails.
@@ -241,88 +241,37 @@ class Visualizer:
             layout = column(*self.plots)
             save(layout)
 
-            # Read the generated Bokeh HTML content
-            bokeh_html = file_path.read_text(encoding="utf-8")
-
-            # Create a single self-contained file with live reloading
-            combined_html = f"""<!doctype html>
+            # Create a small live wrapper that reloads when the HTML changes
+            wrapper_path = file_path.parent / "visualization_live.html"
+            wrapper_html = f"""<!doctype html>
 <html>
   <head>
-    <meta charset="utf-8">
+    <meta charset=\"utf-8\">
     <title>Live Visualization</title>
     <style>html,body{{height:100%;margin:0;padding:0}}</style>
   </head>
   <body>
-    <div id="bokeh-plots" style="width:100%;height:100vh;">
-      {bokeh_html.split('<body>')[1].split('</body>')[0] if '<body>' in bokeh_html and '</body>' in bokeh_html else '<p>Loading visualization...</p>'}
-    </div>
+    <iframe id=\"viz\" src=\"{file_path.name}\" style=\"width:100%;height:100vh;border:none;\"></iframe>
     <script>
-      let lastModified = null;
-      let bokehLoaded = false;
-
-      // Function to load Bokeh content
-      async function loadBokehContent() {{
-        try {{
-          const response = await fetch('{file_path.name}', {{cache: 'no-store'}});
-          const html = await response.text();
-          const bodyContent = html.split('<body>')[1]?.split('</body>')[0] || '<p>Error loading visualization</p>';
-
-          // Extract and execute scripts
-          const scriptMatches = html.match(/<script[^>]*>[\\s\\S]*?<\\/script>/gi) || [];
-          const existingScripts = document.querySelectorAll('script[data-bokeh]');
-
-          // Remove old Bokeh scripts
-          existingScripts.forEach(script => script.remove());
-
-          // Add new scripts
-          scriptMatches.forEach(scriptTag => {{
-            const script = document.createElement('script');
-            script.setAttribute('data-bokeh', 'true');
-            const srcMatch = scriptTag.match(/src=["']([^"']+)["']/);
-            if (srcMatch) {{
-              script.src = srcMatch[1];
-            }} else {{
-              const scriptContent = scriptTag.replace(/<script[^>]*>/, '').replace(/<\\/script>/, '');
-              script.textContent = scriptContent;
-            }}
-            document.head.appendChild(script);
-          }});
-
-          // Update content
-          document.getElementById('bokeh-plots').innerHTML = bodyContent;
-          lastModified = response.headers.get('Last-Modified');
-          bokehLoaded = true;
-        }} catch(e) {{
-          console.error('Error loading Bokeh content:', e);
-        }}
-      }}
-
-      // Check for updates every 2 seconds
-      async function checkForUpdates(){{
+      let last = null;
+      async function check(){{
         try{{
-          const response = await fetch('{file_path.name}', {{method:'HEAD', cache:'no-store'}});
-          const lm = response.headers.get('Last-Modified');
-          if (lastModified && lm && lm !== lastModified) {{
-            console.log('Visualization updated, reloading...');
-            loadBokehContent();
+          const res = await fetch('{file_path.name}', {{method:'HEAD', cache:'no-store'}});
+          const lm = res.headers.get('Last-Modified');
+          if (last && lm && lm !== last) {{
+            document.getElementById('viz').src = '{file_path.name}#' + Date.now();
           }}
-          lastModified = lm;
-        }}catch(e){{
-          console.error('Error checking for updates:', e);
-        }}
+          last = lm;
+        }}catch(e){{}}
       }}
-
-      // Initial load
-      loadBokehContent();
-
-      // Start checking for updates
-      setInterval(checkForUpdates, 2000);
+      setInterval(check, 2000);
     </script>
   </body>
 </html>"""
-
-            # Write the combined file
-            file_path.write_text(combined_html, encoding="utf-8")
+            try:
+                wrapper_path.write_text(wrapper_html, encoding="utf-8")
+            except Exception:
+                pass
 
             # Try to start a local HTTP server serving the file's directory
             server_started = False
@@ -354,17 +303,17 @@ class Visualizer:
                     print(f"Could not start local HTTP server: {ex}")
                     server_started = False
 
-            # Prefer opening via HTTP so auto-reload works
+            # Prefer opening the live wrapper via HTTP so auto-reload works
             try:
                 if server_started:
-                    url = f"http://127.0.0.1:{port}/{file_path.name}"
+                    url = f"http://127.0.0.1:{port}/{wrapper_path.name}"
                     try:
                         webbrowser.open_new_tab(url)
                     except Exception:
                         pass
                     print(f"Visualization served at: {url}")
                     try:
-                        input("Press Enter to stop the local visualization server and exit...\\n")
+                        input("Press Enter to stop the local visualization server and exit...\n")
                     finally:
                         try:
                             if hasattr(self, "_httpd") and self._httpd:
