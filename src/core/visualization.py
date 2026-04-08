@@ -7,7 +7,7 @@ and test data with their assignments.
 
 from typing import List, Dict
 from bokeh.plotting import figure, output_file, save
-from bokeh.layouts import column
+from bokeh.layouts import column, gridplot
 from bokeh.models import HoverTool
 from src.models.models import TrainingData, IdealFunction, TestData
 from src.utils.exceptions import VisualizationError
@@ -60,8 +60,8 @@ class Visualizer:
             # Extract data
             x_train = [t.x for t in training_data]
             y_train = [t.y_values[training_index] for t in training_data]
-            x_ideal = [ideal_function.x]
-            y_ideal = [ideal_function.y_values[ideal_function_index]]
+            x_ideal = x_train
+            y_ideal = ideal_function.y_values
 
             # Create figure
             p = figure(
@@ -78,7 +78,7 @@ class Visualizer:
                 x_train,
                 y_train,
                 size=8,
-                color="blue",
+                color="#1f77b4",
                 alpha=0.6,
                 legend_label="Training Data",
             )
@@ -88,8 +88,8 @@ class Visualizer:
                 x_ideal,
                 y_ideal,
                 line_width=2,
-                color="red",
-                legend_label=f"Ideal Function {ideal_function_index + 1}",
+                color="#d62728",
+                legend_label=f"Best-fit Ideal Function {ideal_function_index + 1}",
             )
 
             # Add hover tool
@@ -204,8 +204,8 @@ class Visualizer:
                 "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
             ]
             for i, ideal_func in enumerate(ideal_functions[:20]):  # Plot first 20 for clarity
-                x_data = [ideal_func.x] if x_values is None else [x_values[0]]
-                y_data = [ideal_func.y_values[i]]
+                x_data = x_values if x_values is not None else list(range(len(ideal_func.y_values)))
+                y_data = ideal_func.y_values
 
                 p.line(
                     x_data,
@@ -238,7 +238,15 @@ class Visualizer:
             # Ensure we use an absolute path and a proper file URI on all OSes
             file_path = Path(self.output_path).resolve()
             output_file(str(file_path))
-            layout = column(*self.plots)
+
+            if len(self.plots) == 4:
+                layout = gridplot([
+                    [self.plots[0], self.plots[1]],
+                    [self.plots[2], self.plots[3]],
+                ], sizing_mode="stretch_both")
+            else:
+                layout = column(*self.plots)
+
             save(layout)
 
             # Create a small live wrapper that reloads when the HTML changes
