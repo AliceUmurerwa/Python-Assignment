@@ -22,6 +22,7 @@ from src.database.database import Database, TrainingDataDB, IdealFunctionDB, Tes
 from src.core.data_loader import TrainingDataLoader, IdealFunctionLoader, TestDataLoader
 from src.core.ideal_function_selector import IdealFunctionSelector
 from src.core.test_mapper import TestDataMapper
+from src.core.test_mapping_advanced import AdvancedTestDataMapper, TestMappingVisualizer
 from src.core.visualization import Visualizer
 from src.models.models import TrainingData, IdealFunction, TestData
 from src.utils.exceptions import (
@@ -55,11 +56,14 @@ class Application:
         self.test_loader = TestDataLoader()
         self.selector = IdealFunctionSelector()
         self.visualizer = Visualizer()
+        self.advanced_mapper = AdvancedTestDataMapper()
+        self.test_mapping_visualizer = TestMappingVisualizer()
         
         self.training_data_sets: Dict[str, List[TrainingData]] = {}
         self.ideal_functions: List[IdealFunction] = []
         self.test_data: List[TestData] = []
         self.selected_ideal_functions: Dict = {}
+        self.mapping_results_df = None
 
     def load_data(
         self,
@@ -240,31 +244,21 @@ class Application:
             if not self.test_data or not self.selected_ideal_functions:
                 raise ValueError("Test data or selected ideal functions not available")
 
-            mapper = TestDataMapper(self.db)
-            
-            # Map using the first training dataset (Y1)
             training_data = list(self.training_data_sets.values())[0]
-            training_y_values = [t.y_values[0] for t in training_data]
-            
-            # For simplicity, map all test points to y1's ideal function
-            selected_y1 = self.selected_ideal_functions.get('y1', {})
-            ideal_func_index = selected_y1.get('index', 0)
-            max_deviation = selected_y1.get('max_deviation', 0)
-            
-            mapped_count = 0
-            for test_point in self.test_data:
-                result = mapper.map_test_point(
-                    test_point,
-                    self.ideal_functions,
-                    ideal_func_index,
-                    max_deviation,
-                )
-                if result is not None:
-                    mapped_count += 1
 
-            # Save to database
+            self.mapping_results_df = self.advanced_mapper.map_test_data_comprehensive(
+                self.test_data,
+                self.ideal_functions,
+                training_data,
+                self.selected_ideal_functions,
+            )
+
+            # Save mapped test data to the database for compatibility
+            mapper = TestDataMapper(self.db)
             mapper.save_to_database(self.test_data)
-            print(f"  [OK] Mapped test data: {mapped_count}/{len(self.test_data)} points")
+
+            assigned_count = self.mapping_results_df['ideal_function'].notna().sum()
+            print(f"  [OK] Mapped test data: {assigned_count}/{len(self.test_data)} points")
 
         except Exception as e:
             raise MappingError(f"Error mapping test data: {str(e)}") from e
@@ -288,8 +282,6 @@ class Application:
             for i in range(4):
                 selected = self.selected_ideal_functions.get(f'y{i+1}', {})
                 ideal_idx = selected.get('index', 0)
-                # Note: In a real implementation, you'd plot the actual ideal function
-                # Here we're using the first point as a placeholder
                 self.visualizer.plot_training_data_with_ideal_function(
                     training_data,
                     self.ideal_functions[ideal_idx],
@@ -297,9 +289,29 @@ class Application:
                     ideal_idx,
                 )
 
-            # Save visualizations
+            # Save original visualizations
             self.visualizer.save_visualizations()
-            print(f"  [OK] Visualizations saved to {self.visualizer.output_path}")
+            print(f"  [OK] Bokeh visualizations saved to {self.visualizer.output_path}")
+
+            # Create assignment plots for test data
+            if self.mapping_results_df is not None:
+                self.test_mapping_visualizer.visualize_mapping_results(
+                    self.mapping_results_df,
+                    self.ideal_functions,
+                    training_data,
+                    self.selected_ideal_functions,
+                    output_path="test_mapping_results.png",
+                )
+                self.test_mapping_visualizer.visualize_combined_view(
+                    self.mapping_results_df,
+                    self.ideal_functions,
+                    training_data,
+                    self.selected_ideal_functions,
+                    output_path="test_mapping_combined.png",
+                )
+                print("  [OK] Test assignment visualizations saved")
+            else:
+                print("  [WARN] No mapping results available for assignment plots")
 
         except VisualizationError as e:
             raise VisualizationError(f"Error generating visualizations: {str(e)}") from e
