@@ -309,6 +309,10 @@ class Application:
                     self.selected_ideal_functions,
                     output_path="test_mapping_combined.png",
                 )
+                self.test_mapping_visualizer.visualize_deviation_histogram(
+                    self.mapping_results_df,
+                    output_path="test_mapping_deviation_histogram.png",
+                )
                 print("  [OK] Test assignment visualizations saved")
             else:
                 print("  [WARN] No mapping results available for assignment plots")

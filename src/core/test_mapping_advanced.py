@@ -537,3 +537,61 @@ class TestMappingVisualizer:
 
         except Exception as e:
             raise VisualizationError(f"Error creating combined view: {str(e)}") from e
+
+    def visualize_deviation_histogram(
+        self,
+        results_df: pd.DataFrame,
+        output_path: str = "test_mapping_deviation_histogram.png",
+    ) -> None:
+        """
+        Create a histogram of deviation values for mapped test points.
+
+        Args:
+            results_df: DataFrame with mapping results.
+            output_path: Path to save the histogram image.
+
+        Raises:
+            VisualizationError: If histogram creation fails.
+        """
+        try:
+            if results_df is None or results_df.empty:
+                raise ValueError("Results DataFrame is empty")
+
+            mapped_deviations = results_df['delta_y'].dropna().astype(float)
+            if mapped_deviations.empty:
+                raise ValueError("No mapped test point deviations available to plot")
+
+            plt.figure(figsize=(10, 6))
+            plt.hist(
+                mapped_deviations,
+                bins=15,
+                color='#1f77b4',
+                edgecolor='black',
+                alpha=0.75,
+            )
+            plt.title('Histogram of Deviation for Mapped Test Points', fontsize=14, fontweight='bold')
+            plt.xlabel('Absolute Deviation', fontsize=12)
+            plt.ylabel('Frequency', fontsize=12)
+            plt.grid(axis='y', alpha=0.35)
+
+            mean_dev = mapped_deviations.mean()
+            median_dev = mapped_deviations.median()
+            plt.axvline(mean_dev, color='red', linestyle='--', linewidth=1.5, label=f'Mean = {mean_dev:.3f}')
+            plt.axvline(median_dev, color='green', linestyle='-.', linewidth=1.5, label=f'Median = {median_dev:.3f}')
+            plt.legend(fontsize=10)
+
+            plt.tight_layout()
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            print(f"Deviation histogram saved to: {output_path}")
+
+            try:
+                file_path = os.path.abspath(output_path)
+                webbrowser.open(f'file://{file_path}')
+                print(f"Deviation histogram opened in browser: {file_path}")
+            except Exception as e:
+                print(f"Could not open deviation histogram in browser: {e}")
+
+            plt.close()
+
+        except Exception as e:
+            raise VisualizationError(f"Error creating deviation histogram: {str(e)}") from e
