@@ -1,7 +1,7 @@
-# IU CSEMDSPWP01 - Programming with Python
-## Ideal Function Selector Project
+# Python written assessment
+## Ideal function selector project
 
-A complete Python application for selecting ideal functions using the Least Squares method and mapping test data to the selected functions.
+A complete python application for selecting ideal functions using the Least Squares method and mapping test data to the selected functions.
 
 ### Project Overview
 
@@ -88,74 +88,6 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Usage
-
-#### Step 1: Generate Sample Data (Optional)
-```bash
-python generate_sample_data.py
-```
-
-This creates:
-- `train_data_1.csv`: Sample training data
-- `ideal_functions.csv`: Sample ideal functions
-- `test_data.csv`: Sample test data
-
-#### Step 2: Run the Application
-```bash
-python main.py
-```
-
-#### Expected Output
-```
-============================================================
-IU CSEMDSPWP01 - Ideal Function Selector
-============================================================
-
-Loading training data...
-  ✓ Loaded training data 1: 100 points
-Loading ideal functions...
-  ✓ Loaded ideal functions: 100 functions with 50 each
-Loading test data...
-  ✓ Loaded test data: 50 points
-
-Initializing database...
-  ✓ Database initialized
-  ✓ Populated training data: 100 records
-  ✓ Populated ideal functions: 100 records
-
-Selecting ideal functions using Least Squares...
-  ✓ y1: Ideal Function 15, Max Deviation: 0.5234
-  ✓ y2: Ideal Function 23, Max Deviation: 0.4891
-  ✓ y3: Ideal Function 42, Max Deviation: 0.6123
-  ✓ y4: Ideal Function 31, Max Deviation: 0.5567
-
-Mapping test data to ideal functions...
-  ✓ Mapped test data: 48/50 points
-
-Generating visualizations...
-  ✓ Visualizations saved to visualization.html
-
-============================================================
-Application completed successfully!
-============================================================
-```
-
-#### Step 3: View Results
-- Database file: `ideal_functions.db`
-- Visualizations: `visualization.html` (open in web browser)
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest tests/ -v
-
-# Run specific test file
-pytest tests/test_main.py -v
-
-# Run with coverage
-pytest tests/ --cov=. --cov-report=html
-```
 
 ### File Descriptions
 
@@ -179,13 +111,6 @@ Data models using dataclasses:
 - `TrainingData`: Single training data point (4 Y values)
 - `IdealFunction`: Single ideal function (50 Y values)
 - `TestData`: Single test data point with optional mapping
-
-#### data_loader.py
-CSV data loaders with validation:
-- `DataLoader`: Base class with common functionality
-- `TrainingDataLoader`: Loads training CSV files
-- `IdealFunctionLoader`: Loads ideal functions CSV
-- `TestDataLoader`: Loads test data CSV
 
 #### ideal_function_selector.py
 Least Squares implementation:
@@ -215,34 +140,6 @@ Custom exception classes:
 - `MappingError`
 - `VisualizationError`
 
-### Code Quality
-
-#### PEP 8 Compliance
-- All code follows PEP 8 style guidelines
-- Line length limited to ~100 characters
-- Proper spacing and naming conventions
-
-#### Type Hints
-All functions include type hints for parameters and return values:
-```python
-def load_csv(file_path: str) -> pd.DataFrame:
-    """Load a CSV file into a pandas DataFrame."""
-```
-
-#### Documentation
-- Comprehensive module docstrings
-- Class and method docstrings with Args, Returns, Raises
-- Inline comments for complex logic
-
-### Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| pandas | 2.0.3 | Data manipulation and CSV loading |
-| numpy | 1.24.3 | Numerical computations |
-| sqlalchemy | 2.0.19 | ORM and database management |
-| bokeh | 3.3.0 | Interactive visualizations |
-| pytest | 7.4.0 | Unit testing framework |
 
 ### Mathematical Details
 
@@ -268,71 +165,8 @@ Where:
 - max_deviation: Maximum absolute deviation from training data
 - √2 ≈ 1.414: Safety factor
 
-### Example Usage
 
-```python
-from main import Application
+### Author
 
-# Create application instance
-app = Application("my_database.db")
+Alice Umurerwa 
 
-# Run the complete workflow
-app.run(
-    training_files=["train1.csv", "train2.csv", "train3.csv", "train4.csv"],
-    ideal_file="ideal_functions.csv",
-    test_file="test_data.csv"
-)
-
-# Access results
-for key, value in app.selected_ideal_functions.items():
-    print(f"Best function for {key}: {value['index']}")
-    print(f"Max deviation: {value['max_deviation']:.4f}")
-```
-
-### Troubleshooting
-
-**Issue**: "File not found" error
-- **Solution**: Ensure CSV files are in the correct directory or provide absolute paths
-
-**Issue**: SQLAlchemy database locked error
-- **Solution**: Close the database with `app.db.close()` after use
-
-**Issue**: Bokeh visualization not opening
-- **Solution**: Open the `visualization.html` file manually in a web browser
-
-### Performance Considerations
-
-- **Data Size**: Optimized for datasets with 100-10,000 training points
-- **Memory**: Loads all data into memory - adjust for very large datasets
-- **Database**: SQLite suitable for datasets up to ~1GB
-
-### Future Enhancements
-
-1. Support for different deviation thresholds
-2. Linear interpolation for X values between data points
-3. Batch processing for large test datasets
-4. Export results to multiple formats (Excel, JSON, etc.)
-5. Interactive parameter tuning in visualizations
-6. Performance profiling and optimization
-7. Parallel processing for ideal function selection
-
-### Author Notes
-
-This project demonstrates:
-- Professional Python package structure
-- Object-oriented design with inheritance
-- Database operations with ORM
-- Data processing and analysis
-- Scientific computation (Least Squares)
-- Testing best practices
-- Documentation standards
-
-### License
-
-This project is provided as-is for educational purposes.
-
----
-
-**Last Updated**: January 15, 2026
-**Python Version**: 3.8+
-**Status**: Complete and tested
